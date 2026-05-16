@@ -1,0 +1,955 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>短ID信使 · 稳定文件传输</title>
+    <!-- PeerJS 库 -->
+    <script src="https://unpkg.com/peerjs@1.5.2/dist/peerjs.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', 'Inter', system-ui, -apple-system, sans-serif;
+            background: linear-gradient(145deg, #eef2f7 0%, #dce5ef 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .chat-container {
+            max-width: 1000px;
+            width: 100%;
+            background: rgba(255, 255, 255, 0.97);
+            border-radius: 40px;
+            box-shadow: 0 25px 45px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+            transition: all 0.2s ease;
+        }
+
+        .header {
+            background: #0f2b3d;
+            color: white;
+            padding: 20px 28px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 1.9rem;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+        }
+
+        .header p {
+            opacity: 0.8;
+            font-size: 0.85rem;
+        }
+
+        /* 身份卡片 */
+        .identity-card {
+            background: #f1f6fd;
+            margin: 20px 24px 0 24px;
+            border-radius: 28px;
+            padding: 16px 22px;
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            border: 1px solid #dce7f2;
+        }
+
+        .my-id-section {
+            flex: 3;
+        }
+
+        .label {
+            font-size: 0.7rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #3c6e9c;
+            margin-bottom: 6px;
+        }
+
+        .short-id-wrapper {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .id-value {
+            font-family: 'Fira Code', 'Courier New', monospace;
+            font-weight: bold;
+            font-size: 1.7rem;
+            background: white;
+            padding: 6px 20px;
+            border-radius: 60px;
+            letter-spacing: 1px;
+            border: 1px solid #cbdbe0;
+            color: #0f2b3d;
+        }
+
+        .copy-btn, .regenerate-btn {
+            border: none;
+            padding: 8px 22px;
+            border-radius: 40px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 600;
+            transition: 0.2s;
+        }
+
+        .copy-btn {
+            background: #2c6e9e;
+            color: white;
+        }
+
+        .copy-btn:hover {
+            background: #1e547b;
+            transform: scale(0.97);
+        }
+
+        .regenerate-btn {
+            background: #e7edf5;
+            color: #1f5a83;
+            border: 1px solid #cbdae2;
+        }
+
+        .status-badge {
+            background: #eef2f8;
+            padding: 8px 18px;
+            border-radius: 60px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #1e3b4f;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .status-led {
+            width: 12px;
+            height: 12px;
+            border-radius: 12px;
+            background-color: #8f9eb2;
+            transition: 0.2s;
+        }
+
+        .status-led.connected {
+            background-color: #2ecc71;
+            box-shadow: 0 0 6px #2ecc71;
+        }
+
+        /* 连接区 */
+        .connect-panel {
+            margin: 20px 24px;
+            background: white;
+            border-radius: 28px;
+            padding: 18px 22px;
+            border: 1px solid #e2edf7;
+        }
+
+        .input-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: center;
+            margin-top: 5px;
+        }
+
+        .input-group input {
+            flex: 3;
+            padding: 12px 20px;
+            border-radius: 60px;
+            border: 1.5px solid #cbdae9;
+            font-size: 1rem;
+            font-family: monospace;
+            font-weight: 500;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #2c6e9e;
+            box-shadow: 0 0 0 3px rgba(44, 110, 158, 0.2);
+        }
+
+        .btn {
+            background: #2c6e9e;
+            border: none;
+            color: white;
+            padding: 10px 28px;
+            border-radius: 60px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: 0.2s;
+            font-size: 0.85rem;
+        }
+
+        .btn:hover {
+            background: #1e547b;
+            transform: translateY(-1px);
+        }
+
+        .btn-outline {
+            background: #ecf5fa;
+            color: #1e547b;
+            border: 1px solid #bdd4e8;
+        }
+
+        .chat-log-area {
+            margin: 0 24px 20px 24px;
+            background: #f9fbfe;
+            border-radius: 28px;
+            border: 1px solid #e2edf7;
+            overflow: hidden;
+        }
+
+        .chat-header {
+            background: #eef3fc;
+            padding: 12px 22px;
+            font-weight: 600;
+            border-bottom: 1px solid #dee8f2;
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        .message-list {
+            height: 360px;
+            overflow-y: auto;
+            padding: 18px 22px;
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            background: #ffffffd9;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 10px 18px;
+            border-radius: 22px;
+            font-size: 0.9rem;
+            line-height: 1.4;
+            word-break: break-word;
+            animation: fadeIn 0.2s ease;
+        }
+
+        .message.self {
+            background: #2c6e9e;
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+
+        .message.other {
+            background: #eef3fa;
+            color: #1e2f3c;
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+            border: 1px solid #dce6f0;
+        }
+
+        .system-message {
+            text-align: center;
+            font-size: 0.73rem;
+            color: #6f8fae;
+            margin: 6px 0;
+            font-style: italic;
+        }
+
+        .file-message {
+            background: #f0f4e8;
+            border-left: 4px solid #2c6e9e;
+        }
+
+        .timestamp {
+            font-size: 0.6rem;
+            opacity: 0.7;
+            margin-top: 5px;
+            display: block;
+        }
+
+        .download-link {
+            display: inline-block;
+            margin-top: 8px;
+            background: #e2eaf1;
+            padding: 6px 12px;
+            border-radius: 30px;
+            font-size: 0.75rem;
+            text-decoration: none;
+            color: #1e547b;
+            font-weight: 600;
+        }
+
+        .action-bar {
+            display: flex;
+            gap: 12px;
+            margin: 12px 24px 24px 24px;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .message-input-area {
+            flex: 3;
+            display: flex;
+            gap: 12px;
+            min-width: 200px;
+        }
+
+        .message-input-area input {
+            flex: 1;
+            padding: 14px 22px;
+            border-radius: 60px;
+            border: 1.5px solid #cbdae9;
+            font-size: 0.9rem;
+        }
+
+        .file-send-area {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            background: #f0f5fa;
+            padding: 6px 18px;
+            border-radius: 60px;
+        }
+
+        .file-label {
+            background: #cbdae9;
+            padding: 8px 16px;
+            border-radius: 60px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transition: 0.2s;
+            display: inline-block;
+        }
+
+        .file-label:hover {
+            background: #b6c8db;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        #selectedFileName {
+            font-size: 0.75rem;
+            color: #2c6e9e;
+            max-width: 180px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        button:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(6px);}
+            to { opacity: 1; transform: translateY(0);}
+        }
+
+        footer {
+            font-size: 0.7rem;
+            text-align: center;
+            padding: 14px;
+            color: #5e7c9a;
+            border-top: 1px solid #e2e8f0;
+            background: #fafdff;
+        }
+    </style>
+</head>
+<body>
+<div class="chat-container">
+    <div class="header">
+        <h1>📁 短ID信使 · 文件传输</h1>
+        <p>点对点加密 | 短地址 | 支持文本 + 任意文件</p>
+    </div>
+
+    <div class="identity-card">
+        <div class="my-id-section">
+            <div class="label">✨ 你的专属短地址</div>
+            <div class="short-id-wrapper">
+                <span class="id-value" id="myPeerIdDisplay">生成中...</span>
+                <button class="copy-btn" id="copyIdBtn">📋 复制短ID</button>
+                <button class="regenerate-btn" id="regenerateIdBtn">🔄 换一个ID</button>
+            </div>
+            <div style="font-size:0.7rem; margin-top:8px;">💡 将此ID告知对方，对方输入即可连接你</div>
+        </div>
+        <div class="status-badge" id="connectionStatusBadge">
+            <span class="status-led" id="statusLed"></span>
+            <span id="statusText">未连接</span>
+        </div>
+    </div>
+
+    <div class="connect-panel">
+        <div class="label">🔌 输入对方短ID (6位字母数字)</div>
+        <div class="input-group">
+            <input type="text" id="remotePeerIdInput" placeholder="例如: aB3xK9" autocomplete="off">
+            <button class="btn" id="connectBtn">🔗 连接</button>
+            <button class="btn btn-outline" id="disconnectBtn">❌ 断开</button>
+        </div>
+    </div>
+
+    <div class="chat-log-area">
+        <div class="chat-header">
+            <span>💬 通信记录</span>
+            <span id="connPeerHint" style="font-size:0.7rem;">⚡ 未连接</span>
+        </div>
+        <div class="message-list" id="messageList">
+            <div class="system-message">✨ 等待连接... 你的短ID即为通信地址<br>📎 支持发送文本、文件（建议小于100MB）</div>
+        </div>
+    </div>
+
+    <div class="action-bar">
+        <div class="message-input-area">
+            <input type="text" id="messageInput" placeholder="输入文本消息..." autocomplete="off" disabled>
+            <button class="btn send-btn" id="sendMsgBtn" disabled>发送</button>
+        </div>
+        <div class="file-send-area">
+            <label class="file-label">
+                📎 选择文件
+                <input type="file" id="fileInput" style="display: none;">
+            </label>
+            <span id="selectedFileName">未选择文件</span>
+            <button class="btn" id="sendFileBtn" disabled style="padding: 8px 18px;">📤 发送文件</button>
+        </div>
+    </div>
+    <footer>
+        🚀 基于 WebRTC · 收发字符串 & 文件（支持图片、文档等所有格式）
+    </footer>
+</div>
+
+<script>
+    // ---------- DOM ----------
+    const myPeerIdSpan = document.getElementById('myPeerIdDisplay');
+    const copyIdBtn = document.getElementById('copyIdBtn');
+    const regenerateIdBtn = document.getElementById('regenerateIdBtn');
+    const remotePeerIdInput = document.getElementById('remotePeerIdInput');
+    const connectBtn = document.getElementById('connectBtn');
+    const disconnectBtn = document.getElementById('disconnectBtn');
+    const messageInput = document.getElementById('messageInput');
+    const sendMsgBtn = document.getElementById('sendMsgBtn');
+    const messageListDiv = document.getElementById('messageList');
+    const statusLed = document.getElementById('statusLed');
+    const statusTextSpan = document.getElementById('statusText');
+    const connPeerHint = document.getElementById('connPeerHint');
+    const fileInput = document.getElementById('fileInput');
+    const sendFileBtn = document.getElementById('sendFileBtn');
+    const selectedFileNameSpan = document.getElementById('selectedFileName');
+
+    // ---------- 全局 ----------
+    let peer = null;
+    let currentConn = null;
+    let currentRemoteId = null;
+    let isConnecting = false;
+    let currentShortId = null;
+    let retryCount = 0;
+    let selectedFile = null;   // 存储选中的文件对象
+
+    // ---------- 文件接收状态机 ----------
+    let waitingFileMeta = null;   // 如果非null，表示等待接收文件数据，存储了元数据 { filename, filesize, filetype }
+
+    // ---------- UI 辅助 ----------
+    function addMessage(content, type = 'system', remoteLabel = '') {
+        const msgDiv = document.createElement('div');
+        const now = new Date();
+        const timeStr = `${now.getHours().toString().padStart(2,'0')}:${now.getMinutes().toString().padStart(2,'0')}:${now.getSeconds().toString().padStart(2,'0')}`;
+        
+        if (type === 'system') {
+            msgDiv.className = 'system-message';
+            msgDiv.innerText = `⚙️ ${content}`;
+        } else if (type === 'self') {
+            msgDiv.className = 'message self';
+            msgDiv.innerHTML = `${escapeHtml(content)}<span class="timestamp">${timeStr} · 我</span>`;
+        } else if (type === 'other') {
+            msgDiv.className = 'message other';
+            const displayName = remoteLabel ? `对方 (${remoteLabel})` : '对方';
+            msgDiv.innerHTML = `${escapeHtml(content)}<span class="timestamp">${timeStr} · ${displayName}</span>`;
+        } else if (type === 'file-self') {
+            msgDiv.className = 'message self file-message';
+            msgDiv.innerHTML = `📁 文件: ${escapeHtml(content.name)} (${formatFileSize(content.size)})<span class="timestamp">${timeStr} · 我</span>`;
+        } else if (type === 'file-other') {
+            msgDiv.className = 'message other file-message';
+            const displayName = remoteLabel ? `对方 (${remoteLabel})` : '对方';
+            let fileInfo = `📁 收到文件: ${escapeHtml(content.name)} (${formatFileSize(content.size)})`;
+            const downloadUrl = URL.createObjectURL(content.blob);
+            const downloadLink = `<a class="download-link" href="${downloadUrl}" download="${escapeHtml(content.name)}">⬇️ 点击下载</a>`;
+            msgDiv.innerHTML = `${fileInfo}<br>${downloadLink}<span class="timestamp">${timeStr} · ${displayName}</span>`;
+        }
+        messageListDiv.appendChild(msgDiv);
+        msgDiv.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+
+    function escapeHtml(str) {
+        if (!str) return '';
+        return str.replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        });
+    }
+
+    function formatFileSize(bytes) {
+        if (bytes === 0) return '0 B';
+        const k = 1024;
+        const sizes = ['B', 'KB', 'MB', 'GB'];
+        const i = Math.floor(Math.log(bytes) / Math.log(k));
+        return parseFloat((bytes / Math.pow(k, i)).toFixed(1)) + ' ' + sizes[i];
+    }
+
+    function updateConnectionStatus(connected, remoteId = null) {
+        if (connected && remoteId) {
+            statusLed.className = 'status-led connected';
+            statusTextSpan.innerText = `已连接 → ${remoteId}`;
+            connPeerHint.innerText = `🔗 已连接: ${remoteId}`;
+            messageInput.disabled = false;
+            sendMsgBtn.disabled = false;
+            sendFileBtn.disabled = false;
+            messageInput.placeholder = `向 ${remoteId} 发送消息...`;
+        } else {
+            statusLed.className = 'status-led';
+            statusTextSpan.innerText = '未连接';
+            connPeerHint.innerText = '⚡ 未连接';
+            messageInput.disabled = true;
+            sendMsgBtn.disabled = true;
+            sendFileBtn.disabled = true;
+            messageInput.placeholder = '未连接，无法发送';
+            currentRemoteId = null;
+        }
+    }
+
+    function closeCurrentConnection() {
+        if (currentConn) {
+            try { currentConn.close(); } catch(e) {}
+            currentConn = null;
+        }
+        currentRemoteId = null;
+        waitingFileMeta = null;
+        updateConnectionStatus(false);
+    }
+
+    // 核心：接收数据处理器（支持文件传输协议）
+    function handleReceivedData(data, remoteId) {
+        // 1. 如果正在等待文件数据，且当前data是二进制数据（Blob/ArrayBuffer/ArrayBufferView）
+        if (waitingFileMeta) {
+            let blob = null;
+            if (data instanceof Blob) {
+                blob = data;
+            } else if (data instanceof ArrayBuffer) {
+                blob = new Blob([data]);
+            } else if (data instanceof Uint8Array || data instanceof DataView) {
+                blob = new Blob([data]);
+            } else if (data && typeof data === 'object' && data.buffer instanceof ArrayBuffer) {
+                // ArrayBufferView 比如 Uint8Array
+                blob = new Blob([data.buffer]);
+            }
+            if (blob) {
+                const finalName = waitingFileMeta.filename || `file_${Date.now()}`;
+                addMessage({ name: finalName, size: blob.size, blob: blob }, 'file-other', remoteId);
+                waitingFileMeta = null;
+                return;
+            } else {
+                // 预期是文件数据但收到其他，可能是错误，重置状态
+                addMessage(`⚠️ 文件传输出错，预期二进制数据但收到 ${typeof data}`, 'system');
+                waitingFileMeta = null;
+                // 继续处理可能为普通文本
+            }
+        }
+
+        // 2. 检查是否文件元数据字符串 (格式: __FILE_META__|文件名|文件大小|MIME)
+        if (typeof data === 'string' && data.startsWith('__FILE_META__|')) {
+            const parts = data.split('|');
+            if (parts.length >= 4) {
+                const filename = parts[1];
+                const size = parseInt(parts[2], 10);
+                const filetype = parts[3];
+                waitingFileMeta = { filename, filesize: size, filetype };
+                addMessage(`📄 准备接收文件: ${filename} (${formatFileSize(size)})`, 'system');
+                return;
+            }
+        }
+
+        // 3. 普通文本消息
+        if (typeof data === 'string') {
+            addMessage(data, 'other', remoteId);
+            return;
+        }
+
+        // 4. 兼容旧版或直接的Blob（未使用元数据协议但直接发送Blob）
+        let possibleBlob = null;
+        if (data instanceof Blob) possibleBlob = data;
+        else if (data instanceof ArrayBuffer) possibleBlob = new Blob([data]);
+        else if (data instanceof Uint8Array) possibleBlob = new Blob([data]);
+        else if (data && data.buffer instanceof ArrayBuffer) possibleBlob = new Blob([data.buffer]);
+        
+        if (possibleBlob) {
+            // 生成默认文件名
+            const defaultName = `文件_${Date.now()}.bin`;
+            addMessage({ name: defaultName, size: possibleBlob.size, blob: possibleBlob }, 'file-other', remoteId);
+            return;
+        }
+
+        // 未知数据
+        addMessage(`⚠️ 收到无法识别的数据类型: ${typeof data}，请确保双方使用最新版本`, 'system');
+        console.warn('Unrecognized data:', data);
+    }
+
+    // 设置数据连接回调
+    function setupConnectionCallbacks(conn, remoteShortId) {
+        if (!conn) return;
+        conn.on('data', (data) => {
+            handleReceivedData(data, remoteShortId);
+        });
+
+        conn.on('open', () => {
+            if (currentConn === conn) {
+                addMessage(`✅ 与 ${conn.peer} 的连接已建立`, 'system');
+                updateConnectionStatus(true, conn.peer);
+                currentRemoteId = conn.peer;
+            }
+        });
+        conn.on('close', () => {
+            addMessage(`🔌 与 ${conn.peer} 的连接已断开`, 'system');
+            if (currentConn === conn) {
+                currentConn = null;
+                currentRemoteId = null;
+                waitingFileMeta = null;
+                updateConnectionStatus(false);
+            }
+        });
+        conn.on('error', (err) => {
+            addMessage(`⚠️ 连接错误 (${conn.peer}): ${err.message || '未知'}`, 'system');
+            if (currentConn === conn) {
+                try { conn.close(); } catch(e) {}
+                currentConn = null;
+                waitingFileMeta = null;
+                updateConnectionStatus(false);
+            }
+        });
+    }
+
+    // 发送文件：使用元数据 + 二进制数据 确保所有环境正确接收
+    async function sendFile(file) {
+        if (!currentConn || !currentConn.open) {
+            addMessage("⚠️ 未连接，无法发送文件", 'system');
+            return false;
+        }
+        if (!file) {
+            addMessage("请先选择文件", 'system');
+            return false;
+        }
+        if (file.size > 100 * 1024 * 1024) {
+            addMessage("⚠️ 文件大于100MB，传输可能不稳定，建议分块或压缩", 'system');
+        }
+        
+        addMessage(`⏳ 正在发送 ${file.name} (${formatFileSize(file.size)}) ...`, 'system');
+        
+        try {
+            // 1. 发送元数据字符串
+            const metadata = `__FILE_META__|${file.name}|${file.size}|${file.type || 'application/octet-stream'}`;
+            currentConn.send(metadata);
+            
+            // 2. 将文件读取为 ArrayBuffer 并发送 (确保二进制兼容)
+            const arrayBuffer = await file.arrayBuffer();
+            // PeerJS 支持直接发送 ArrayBuffer
+            currentConn.send(arrayBuffer);
+            
+            addMessage({ name: file.name, size: file.size }, 'file-self');
+            // 清空选中
+            selectedFile = null;
+            fileInput.value = '';
+            selectedFileNameSpan.innerText = '未选择文件';
+            return true;
+        } catch (err) {
+            addMessage(`❌ 文件发送失败: ${err.message}`, 'system');
+            return false;
+        }
+    }
+
+    // 处理传入连接 (被动)
+    function onIncomingConnection(conn) {
+        if (currentConn && currentConn.open) {
+            addMessage(`⚠️ 已有连接，自动断开旧连接并接受 ${conn.peer} 的新连接`, 'system');
+            closeCurrentConnection();
+        }
+        currentConn = conn;
+        currentRemoteId = conn.peer;
+        waitingFileMeta = null;
+        setupConnectionCallbacks(conn, conn.peer);
+        if (conn.open) {
+            addMessage(`📞 对方 ${conn.peer} 已连接`, 'system');
+            updateConnectionStatus(true, conn.peer);
+        } else {
+            addMessage(`📡 收到来自 ${conn.peer} 的连接请求，建立中...`, 'system');
+        }
+        if (conn.open && currentConn === conn) updateConnectionStatus(true, conn.peer);
+    }
+
+    // 主动连接
+    function connectToPeer(remoteId) {
+        if (!remoteId || remoteId.trim() === "") {
+            addMessage("❌ 请输入对方短ID", 'system');
+            return false;
+        }
+        remoteId = remoteId.trim();
+        if (remoteId === currentShortId) {
+            addMessage("⚠️ 不能连接自己", 'system');
+            return false;
+        }
+        if (isConnecting) {
+            addMessage("⏳ 连接中，请稍后", 'system');
+            return false;
+        }
+        if (currentConn && currentConn.open) {
+            addMessage(`🔄 断开当前连接，连接新目标 ${remoteId}`, 'system');
+            closeCurrentConnection();
+        }
+        isConnecting = true;
+        addMessage(`🔍 正在连接 ${remoteId} ...`, 'system');
+        try {
+            const newConn = peer.connect(remoteId, { reliable: true });
+            if (!newConn) {
+                addMessage(`❌ 无法创建连接`, 'system');
+                isConnecting = false;
+                return false;
+            }
+            currentConn = newConn;
+            currentRemoteId = remoteId;
+            waitingFileMeta = null;
+            setupConnectionCallbacks(newConn, remoteId);
+            newConn.on('error', (err) => {
+                addMessage(`❌ 连接 ${remoteId} 失败: ${err.message || '对方不在线'}`, 'system');
+                if (currentConn === newConn) {
+                    currentConn = null;
+                    waitingFileMeta = null;
+                    updateConnectionStatus(false);
+                }
+                isConnecting = false;
+            });
+            newConn.on('open', () => {
+                isConnecting = false;
+                addMessage(`🎉 成功连接到 ${remoteId}`, 'system');
+                updateConnectionStatus(true, remoteId);
+            });
+            setTimeout(() => {
+                if (isConnecting === true && currentConn === newConn && !newConn.open) {
+                    isConnecting = false;
+                    addMessage(`⏰ 连接超时，${remoteId} 无响应`, 'system');
+                    if (currentConn === newConn && !newConn.open) {
+                        try { newConn.close(); } catch(e) {}
+                        currentConn = null;
+                        waitingFileMeta = null;
+                        updateConnectionStatus(false);
+                    }
+                }
+            }, 15000);
+        } catch (err) {
+            addMessage(`连接异常: ${err.message}`, 'system');
+            isConnecting = false;
+            currentConn = null;
+            waitingFileMeta = null;
+            updateConnectionStatus(false);
+        }
+        return true;
+    }
+
+    // 发送文本
+    function sendTextMessage(content) {
+        if (!content || content.trim() === "") {
+            addMessage("📭 消息不能为空", 'system');
+            return false;
+        }
+        if (!currentConn || !currentConn.open) {
+            addMessage("⚠️ 未连接", 'system');
+            return false;
+        }
+        const trimmed = content.trim();
+        try {
+            currentConn.send(trimmed);
+            addMessage(trimmed, 'self');
+            return true;
+        } catch (err) {
+            addMessage(`发送失败: ${err.message}`, 'system');
+            return false;
+        }
+    }
+
+    // ---------- Peer 短ID管理 ----------
+    function generateShortId() {
+        const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789';
+        let id = '';
+        for (let i = 0; i < 6; i++) {
+            id += chars.charAt(Math.floor(Math.random() * chars.length));
+        }
+        return id;
+    }
+
+    function initPeerWithId(id, retry = true) {
+        return new Promise((resolve, reject) => {
+            if (peer && !peer.destroyed) peer.destroy();
+            const config = {
+                debug: 0,
+                config: { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }] }
+            };
+            const newPeer = new Peer(id, config);
+            peer = newPeer;
+            let resolved = false;
+
+            const cleanupAndRetry = (errMsg) => {
+                if (resolved) return;
+                if (peer) peer.destroy();
+                if (retry && retryCount < 4) {
+                    retryCount++;
+                    const newId = generateShortId();
+                    currentShortId = newId;
+                    myPeerIdSpan.innerText = currentShortId;
+                    addMessage(`⚠️ ID "${id}" 已被占用，更换为 "${currentShortId}"`, 'system');
+                    initPeerWithId(currentShortId, true).then(resolve).catch(reject);
+                } else {
+                    addMessage(`❌ 无法注册短ID: ${errMsg}，点击「换一个ID」重试`, 'system');
+                    reject(new Error(errMsg));
+                }
+                resolved = true;
+            };
+
+            peer.on('open', (assignedId) => {
+                if (resolved) return;
+                resolved = true;
+                currentShortId = assignedId;
+                myPeerIdSpan.innerText = assignedId;
+                addMessage(`🎯 你的短ID: ${assignedId}`, 'system');
+                addMessage(`💡 复制此ID告诉对方`, 'system');
+                remotePeerIdInput.placeholder = `对方短ID (如 ${assignedId})`;
+                statusTextSpan.innerText = '未连接';
+                retryCount = 0;
+                resolve(peer);
+            });
+            peer.on('error', (err) => {
+                if (resolved) return;
+                if (err.type === 'unavailable-id' || (err.message && err.message.includes('already taken'))) {
+                    cleanupAndRetry('ID已被占用');
+                } else {
+                    cleanupAndRetry(`Peer错误: ${err.message || err.type}`);
+                }
+            });
+            peer.on('connection', (conn) => {
+                addMessage(`📨 收到来自 ${conn.peer} 的连接请求`, 'system');
+                onIncomingConnection(conn);
+            });
+            peer.on('disconnected', () => {
+                addMessage(`⚠️ 与信令服务器断开，尝试重连`, 'system');
+                statusTextSpan.innerText = '信令中断';
+                statusLed.className = 'status-led';
+                peer.reconnect();
+            });
+            peer.on('reconnected', () => {
+                addMessage(`✅ 信令重连成功，ID: ${peer.id}`, 'system');
+                if (!currentConn || !currentConn.open) updateConnectionStatus(false);
+            });
+        });
+    }
+
+    async function recreatePeerWithShortId(newId) {
+        if (currentConn && currentConn.open) {
+            addMessage(`请先断开当前连接`, 'system');
+            return;
+        }
+        if (peer && !peer.destroyed) peer.destroy();
+        await initPeerWithId(newId, true);
+    }
+
+    async function regenerateShortId() {
+        if (currentConn && currentConn.open) {
+            addMessage(`⚠️ 请先断开连接再更换ID`, 'system');
+            return;
+        }
+        const newId = generateShortId();
+        addMessage(`🔄 更换短ID为 ${newId} ...`, 'system');
+        try {
+            await recreatePeerWithShortId(newId);
+        } catch (err) {
+            addMessage(`更换失败: ${err.message}`, 'system');
+        }
+    }
+
+    function copyMyId() {
+        const id = myPeerIdSpan.innerText;
+        if (!id || id === '生成中...') return;
+        navigator.clipboard.writeText(id);
+        addMessage(`✅ 已复制短ID: ${id}`, 'system');
+        copyIdBtn.innerText = "✓ 已复制";
+        setTimeout(() => { copyIdBtn.innerText = "📋 复制短ID"; }, 1500);
+    }
+
+    function manualDisconnect() {
+        if (currentConn && currentConn.open) {
+            addMessage(`🔌 手动断开与 ${currentConn.peer} 的连接`, 'system');
+            closeCurrentConnection();
+        } else {
+            addMessage(`⚠️ 没有活动连接`, 'system');
+        }
+    }
+
+    // 文件选择监听
+    fileInput.addEventListener('change', (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            selectedFile = e.target.files[0];
+            selectedFileNameSpan.innerText = selectedFile.name + ` (${formatFileSize(selectedFile.size)})`;
+        } else {
+            selectedFile = null;
+            selectedFileNameSpan.innerText = '未选择文件';
+        }
+    });
+
+    // 发送文件按钮
+    sendFileBtn.addEventListener('click', () => {
+        if (!selectedFile) {
+            addMessage("请先选择文件", 'system');
+            return;
+        }
+        sendFile(selectedFile);
+    });
+
+    // 事件绑定
+    copyIdBtn.addEventListener('click', copyMyId);
+    regenerateIdBtn.addEventListener('click', regenerateShortId);
+    connectBtn.addEventListener('click', () => connectToPeer(remotePeerIdInput.value.trim()));
+    disconnectBtn.addEventListener('click', manualDisconnect);
+    sendMsgBtn.addEventListener('click', () => {
+        if (sendTextMessage(messageInput.value)) messageInput.value = '';
+    });
+    messageInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter' && !sendMsgBtn.disabled) {
+            e.preventDefault();
+            if (sendTextMessage(messageInput.value)) messageInput.value = '';
+        }
+    });
+
+    // 启动
+    const initialId = generateShortId();
+    currentShortId = initialId;
+    myPeerIdSpan.innerText = '初始化...';
+    initPeerWithId(initialId, true).catch(err => {
+        addMessage(`启动失败: ${err.message}，请刷新页面`, 'system');
+    });
+
+    window.addEventListener('beforeunload', () => {
+        if (currentConn && currentConn.open) currentConn.close();
+        if (peer && !peer.destroyed) peer.destroy();
+    });
+</script>
+</body>
+</html>
